@@ -15,7 +15,7 @@ type Juice struct {
 
 
 type Event interface {
-	Open(cli *Client) error
+	Open(cli *Client,r *http.Request) error
 	Close(cli *Client)
 	Message(cli *Client, p []byte)
 }
@@ -59,7 +59,7 @@ func (j *Juice) initialize(w http.ResponseWriter, r *http.Request) {
 
 	//lifecycle
 	// open handler
-	if err := j.Event.Open(client); err != nil {
+	if err := j.Event.Open(client, r); err != nil {
 		j.Cmd(conn.Close())
 		return
 	}

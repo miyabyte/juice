@@ -2,8 +2,9 @@ package juice_test
 
 import (
 	websocket2 "github.com/gorilla/websocket"
-	"him/chat/juice"
-	"him/chat/socket/websocket"
+	"hantalk_go/apps/him/chat/juice"
+	"hantalk_go/apps/him/chat/socket/websocket"
+	"hantalk_go/apps/him/config"
 	"testing"
 )
 
@@ -15,10 +16,10 @@ func TestJuice_Exec(t *testing.T) {
 	ws := &juice.Juice{Event: &websocket.Event{}, Conf: juice.Config{
 		Addr:                   string("localhost:8000"),
 		HandlerFuncPattern:     "/ws",
-		ReadBufferSize:         1024,
-		WriteBufferSize:        1024,
-		HeartbeatCheckInterval: 10,
-		HeartbeatIdleTime:      10,
+		ReadBufferSize:         himConf.ReadBufferSize,
+		WriteBufferSize:        himConf.WriteBufferSize,
+		HeartbeatCheckInterval: himConf.HeartbeatCheckInterval,
+		HeartbeatIdleTime:      himConf.HeartbeatIdleTime,
 	}}
 	ws.Exec()
 }
