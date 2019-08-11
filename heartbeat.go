@@ -8,7 +8,7 @@ type heartbeat struct {
 }
 
 type source interface {
-	Close(client *Client)
+	CloseClient(client *Client)
 	GetClients() map[uint32]*Client
 }
 
@@ -27,7 +27,7 @@ func (h *heartbeat) run(s source) error {
 func (h *heartbeat) check(s source) error {
 	for _, cli := range s.GetClients() {
 		if time.Now().Sub(cli.LastTime) > h.HeartbeatIdleTime {
-			s.Close(cli)
+			s.CloseClient(cli)
 		}
 	}
 	return nil

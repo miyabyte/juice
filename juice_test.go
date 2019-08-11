@@ -2,36 +2,41 @@ package juice_test
 
 import (
 	websocket2 "github.com/gorilla/websocket"
-	"hantalk_go/apps/him/chat/juice"
-	"hantalk_go/apps/him/chat/socket/websocket"
-	"hantalk_go/apps/him/config"
+	"github.com/pengshuaifei/juice"
+	"log"
 	"testing"
 )
 
-func getJuice() *juice.Juice {
-	return &juice.Juice{Event: &websocket.Event{}}
-}
-
 func TestJuice_Exec(t *testing.T) {
-	ws := &juice.Juice{Event: &websocket.Event{}, Conf: juice.Config{
-		Addr:                   string("localhost:8000"),
-		HandlerFuncPattern:     "/ws",
-		ReadBufferSize:         himConf.ReadBufferSize,
-		WriteBufferSize:        himConf.WriteBufferSize,
-		HeartbeatCheckInterval: himConf.HeartbeatCheckInterval,
-		HeartbeatIdleTime:      himConf.HeartbeatIdleTime,
-	}}
-	ws.Exec()
+	ws := juice.NewJuice(
+		juice.Config{
+			Addr:                   string("localhost:8000"),
+			HandlerFuncPattern:     "/ws",
+			ReadBufferSize:         juice.ReadBufferSize,
+			WriteBufferSize:        juice.WriteBufferSize,
+			HeartbeatCheckInterval: juice.HeartbeatCheckInterval,
+			HeartbeatIdleTime:      juice.HeartbeatIdleTime,
+
+			EnableAnalyzeUid: true,
+		},
+		&juice.DefaultEvent{},
+	)
+
+	ws.Mux.HandleFunc("/ws/info", juice.WsInfo)
+
+	log.Fatalln(ws.Exec())
 }
 
 func TestCliManager_AddClient(t *testing.T) {
+	go TestJuice_Exec(t)
+
 	cids := make([]uint32, 0)
 
-	cliM := juice.GetCliManager()
+	cliM := juice.NewCliManager(&juice.DefaultEvent{})
 
 	for i := 0; i < 100; i++ {
 		client, _ := juice.NewClient(&websocket2.Conn{})
-		cliM.AddClient(getJuice(), client)
+		cliM.AddClient(client)
 		cids = append(cids, client.UUID)
 	}
 

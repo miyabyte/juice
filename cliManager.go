@@ -4,25 +4,40 @@ import (
 	"context"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
+	"sync"
 	"time"
 )
 
 var cm *cliManager
+var onceCM sync.Once
+
+type Observer interface {
+	Online(cli *Client)
+	Offline(cli *Client)
+}
 
 type cliManager struct {
 	clients map[uint32]*Client
+	Event
+
+	observers []Observer
 }
 
 func GetCliManager() *cliManager {
-	if cm == nil {
-		cm = &cliManager{
-			clients: make(map[uint32]*Client),
-		}
-	}
 	return cm
 }
 
-func NewClient(conn *websocket.Conn) (client *Client, err error) {
+func NewCliManager(e Event) *cliManager {
+	onceCM.Do(func() {
+		cm = &cliManager{
+			clients: make(map[uint32]*Client),
+			Event:   e,
+		}
+	})
+	return cm
+}
+
+func NewClient(conn *websocket.Conn) (cli *Client, err error) {
 	if _UUID, err := uuid.NewUUID(); err != nil {
 		return nil, err
 	} else {
@@ -32,53 +47,72 @@ func NewClient(conn *websocket.Conn) (client *Client, err error) {
 			UUID:     _UUID.ID(),
 			LastTime: time.Now(),
 			Ctx:      ctx,
-			Cancel: cancel,
+			Cancel:   cancel,
 		}, nil
 	}
 }
 
-func (cm *cliManager) GetClients () map[uint32]*Client {
+func (cm *cliManager) GetClients() map[uint32]*Client {
 	return cm.clients
 }
 
-func (cm *cliManager) GetClient (uuid uint32) (cli *Client,flag bool) {
-	cli,flag = cm.clients[uuid]
+func (cm *cliManager) GetClient(uuid uint32) (cli *Client, ok bool) {
+	cli, ok = cm.clients[uuid]
 	return
 }
 
-func (cm *cliManager) AddClient(j *Juice, cli *Client) *cliManager {
-	cli.Lock()
-	defer cli.Unlock()
+// up  observer mode
+func (cm *cliManager) AddClient(cli *Client) *cliManager {
+	if GetConfig().EnableAnalyzeUid {
+		ucm := GetUserCliManager()
+		//lock
+		ucm.Lock()
+		defer ucm.Unlock()
 
+		ucm.AddClient(cli)
+	}
 	cm.clients[cli.UUID] = cli
 	return cm
 }
 
-func (cm *cliManager) RemoveClient(j *Juice, cli *Client) *cliManager {
-	cli.Lock()
-	defer cli.Unlock()
-
-	delete(cm.clients, cli.UUID)
-	j.Event.Close(cli)
-	cli.Cancel()
-	return cm
+func (cm *cliManager) CloseClient(c *Client) {
+	_ = c.conn.Close()
+	cm.RemoveClient(c)
 }
 
-func (cm *cliManager) getMessage(j *Juice, cli *Client) {
-	conn := cli.conn
+// down observer mode
+func (cm *cliManager) RemoveClient(cli *Client) {
+	defer cli.Cancel()
+	if GetConfig().EnableAnalyzeUid {
+		ucm := GetUserCliManager()
+		//lock
+		ucm.Lock()
+		defer ucm.Unlock()
+
+		ucm.RemoveClient(cli)
+	}
+	delete(cm.clients, cli.UUID)
+	cm.Close(cli)
+}
+
+func (cm *cliManager) getMessage(cli *Client) {
 	for {
 		// msgType 1 text 2 binary
-		messageType, p, err := conn.ReadMessage()
+		messageType, p, err := cli.conn.ReadMessage()
 		if err != nil {
+			cm.ErrorHandler(NewJError(ErrWsGetMsg, err.Error()))
 			return
 		}
 
+		// heartbeat  close
+		cm.baseHandle(cli, messageType, p)
+
 		if messageType == websocket.TextMessage {
-			j.Event.Message(cli, p)
+			cm.Event.Message(cli, p)
 		}
 
 		if messageType == websocket.BinaryMessage {
-			// 二进制
+			cm.Event.BinaryMessage(cli, p)
 		}
 
 		// wm = nextWriter\write\close
@@ -86,4 +120,21 @@ func (cm *cliManager) getMessage(j *Juice, cli *Client) {
 		//	j.Cmd(err)
 		//	return
 	}
+}
+
+func (cm *cliManager) baseHandle(cli *Client, messageType int, p []byte) {
+
+	//heartbeat
+	if messageType == websocket.PingMessage ||
+		messageType == websocket.PongMessage ||
+		messageType == websocket.TextMessage ||
+		messageType == websocket.BinaryMessage {
+		cli.LastTime = time.Now()
+	}
+
+	//客户端主动关闭
+	if messageType == websocket.CloseMessage {
+		cm.CloseClient(cli)
+	}
+
 }

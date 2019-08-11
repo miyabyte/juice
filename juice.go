@@ -2,52 +2,67 @@ package juice
 
 import (
 	"github.com/gorilla/websocket"
-	"log"
 	"net/http"
 )
 
-type Juice struct {
-	Event Event
-	Conf Config
+var j *juice
+
+type juice struct {
+	event Event
+	Conf  Config
 	Log
-	*cliManager
+	cm *cliManager
+
+	upGrader websocket.Upgrader
+	Mux      *http.ServeMux
 }
 
+func NewJuice(conf Config, e Event) *juice {
+	j := &juice{
+		Conf:  conf,
+		event: e,
+		Mux:   http.NewServeMux(),
+	}
+	return j
+}
 
 type Event interface {
-	Open(cli *Client,r *http.Request) error
+	Open(cli *Client, r *http.Request) error
+	//close when heartbeat or manually(CM) will trigger once
 	Close(cli *Client)
 	Message(cli *Client, p []byte)
+	BinaryMessage(cli *Client, p []byte)
+	ErrorHandler(err JError)
 }
 
-func (j *Juice) Exec() {
-	j.cliManager = GetCliManager()
-	http.HandleFunc(j.Conf.HandlerFuncPattern, j.initialize)
+func (j *juice) Exec() (err error) {
+	setConfig(&j.Conf)
+	GetUserCliManager()
 
-	if err := j.heartbeat();err != nil {
-		panic(err)
+	if err = j.wsSet(); err != nil {
+		return
 	}
 
-	log.Fatal(http.ListenAndServe(j.Conf.Addr, nil))
+	j.Mux.HandleFunc(j.Conf.HandlerFuncPattern, j.initialize)
+
+	if err = j.heartbeat(); err != nil {
+		return
+	}
+
+	if err = http.ListenAndServe(j.Conf.Addr, j.Mux); err != nil {
+		return
+	}
+	return
 }
 
-var upGrader = websocket.Upgrader{
-	ReadBufferSize:  1024,
-	WriteBufferSize: 1024,
-
-	CheckOrigin: func(r *http.Request) bool {
-		return true
-	},
-}
-
-func (j *Juice) initialize(w http.ResponseWriter, r *http.Request) {
+func (j *juice) initialize(w http.ResponseWriter, r *http.Request) {
 	var (
 		conn   *websocket.Conn
 		err    error
 		client *Client
 	)
 
-	if conn, err = upGrader.Upgrade(w, r, nil); err != nil {
+	if conn, err = j.upGrader.Upgrade(w, r, nil); err != nil {
 		j.Cmd(err)
 		return
 	}
@@ -58,35 +73,76 @@ func (j *Juice) initialize(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//lifecycle
-	// open handler
-	if err := j.Event.Open(client, r); err != nil {
+	// analyzeUid handler
+	if j.Conf.EnableAnalyzeUid {
+		client.Uid = j.event.(EnableAnalyzeUid).AnalyzeUid(r)
+	}
+
+	// 	onopen handler
+	if err := j.event.Open(client, r); err != nil {
 		j.Cmd(conn.Close())
 		return
 	}
 
-	// close handler    [parameter client
+	// onclose handler
 	conn.SetCloseHandler(func(closeCode int, closeText string) error {
-		_ = j.RemoveClient(j, client)
+		j.cm.RemoveClient(client)
 		return nil
 	})
 
-	j.AddClient(j, client)
+	j.cm.AddClient(client)
 
-	go j.getMessage(j, client)
+	//  onmessage handler
+	go j.cm.getMessage(client)
 
 	//heartbeat
 
 }
 
-func (j *Juice) Close(c *Client) {
-	_ = c.conn.Close()
-	_ = j.RemoveClient(j, c)
-}
-
-func (j *Juice) heartbeat() (err error) {
+func (j *juice) heartbeat() (err error) {
 	hb := &heartbeat{j.Conf.HeartbeatCheckInterval, j.Conf.HeartbeatIdleTime}
-	if err = hb.run(j);err !=nil {
+	if err = hb.run(j.cm); err != nil {
 		return
 	}
+	return
+}
+
+func (j *juice) wsSet() (err error) {
+	//upGrader
+	var upGrader = websocket.Upgrader{
+		ReadBufferSize:  1024,
+		WriteBufferSize: 1024,
+		CheckOrigin: func(r *http.Request) bool {
+			return true
+		},
+	}
+
+	if j.Conf.ReadBufferSize != 0 && j.Conf.WriteBufferSize != 0 {
+		upGrader.ReadBufferSize = j.Conf.ReadBufferSize
+		upGrader.WriteBufferSize = j.Conf.WriteBufferSize
+	}
+
+	if j.Conf.CheckOrigin != nil {
+		upGrader.CheckOrigin = j.Conf.CheckOrigin
+	}
+
+	j.upGrader = upGrader
+
+	//event
+	if j.event == nil {
+		j.event = &DefaultEvent{}
+	}
+
+	if j.Conf.EnableAnalyzeUid {
+		if _, ok := j.event.(EnableAnalyzeUid); !ok {
+			return &JError{
+				code: ErrEnableAnalyzeUid,
+				msg:  "your EVENT must implement AnalyzeUid interface",
+			}
+		}
+	}
+
+	j.cm = NewCliManager(j.event)
+
 	return
 }
