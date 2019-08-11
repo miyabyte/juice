@@ -11,12 +11,14 @@ var cm *cliManager
 
 type cliManager struct {
 	clients map[uint32]*Client
+	Event
 }
 
-func GetCliManager() *cliManager {
+func GetCliManager(e Event) *cliManager {
 	if cm == nil {
 		cm = &cliManager{
 			clients: make(map[uint32]*Client),
+			Event:   e,
 		}
 	}
 	return cm
@@ -32,21 +34,21 @@ func NewClient(conn *websocket.Conn) (client *Client, err error) {
 			UUID:     _UUID.ID(),
 			LastTime: time.Now(),
 			Ctx:      ctx,
-			Cancel: cancel,
+			Cancel:   cancel,
 		}, nil
 	}
 }
 
-func (cm *cliManager) GetClients () map[uint32]*Client {
+func (cm *cliManager) GetClients() map[uint32]*Client {
 	return cm.clients
 }
 
-func (cm *cliManager) GetClient (uuid uint32) (cli *Client,flag bool) {
-	cli,flag = cm.clients[uuid]
+func (cm *cliManager) GetClient(uuid uint32) (cli *Client, flag bool) {
+	cli, flag = cm.clients[uuid]
 	return
 }
 
-func (cm *cliManager) AddClient(j *Juice, cli *Client) *cliManager {
+func (cm *cliManager) AddClient(cli *Client) *cliManager {
 	cli.Lock()
 	defer cli.Unlock()
 
@@ -54,31 +56,37 @@ func (cm *cliManager) AddClient(j *Juice, cli *Client) *cliManager {
 	return cm
 }
 
-func (cm *cliManager) RemoveClient(j *Juice, cli *Client) *cliManager {
+func (cm *cliManager) CloseClient(c *Client) {
+	_ = c.conn.Close()
+	_ = cm.RemoveClient(c)
+}
+
+func (cm *cliManager) RemoveClient(cli *Client) *cliManager {
 	cli.Lock()
 	defer cli.Unlock()
 
 	delete(cm.clients, cli.UUID)
-	j.Event.Close(cli)
+	cm.Close(cli)
 	cli.Cancel()
 	return cm
 }
 
-func (cm *cliManager) getMessage(j *Juice, cli *Client) {
+func (cm *cliManager) getMessage(cli *Client) {
 	conn := cli.conn
 	for {
 		// msgType 1 text 2 binary
 		messageType, p, err := conn.ReadMessage()
 		if err != nil {
+			cm.ErrorHandler(NewJError(ErrGetMsg, err.Error()))
 			return
 		}
 
 		if messageType == websocket.TextMessage {
-			j.Event.Message(cli, p)
+			cm.Event.Message(cli, p)
 		}
 
 		if messageType == websocket.BinaryMessage {
-			// 二进制
+			cm.Event.BinaryMessage(cli, p)
 		}
 
 		// wm = nextWriter\write\close

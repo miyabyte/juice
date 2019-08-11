@@ -1,14 +1,19 @@
 package juice
 
-import "time"
+import (
+	"net/http"
+	"time"
+)
 
 type Config struct {
-	Addr string
+	Addr               string
 	HandlerFuncPattern string
 
-	ReadBufferSize uint16
-	WriteBufferSize uint16
+	ReadBufferSize  int
+	WriteBufferSize int
 
 	HeartbeatCheckInterval time.Duration
-	HeartbeatIdleTime time.Duration
+	HeartbeatIdleTime      time.Duration
+
+	CheckOrigin func(r *http.Request) bool
 }
