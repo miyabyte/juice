@@ -48,10 +48,8 @@ func (cm *cliManager) GetClient(uuid uint32) (cli *Client, flag bool) {
 	return
 }
 
+// up
 func (cm *cliManager) AddClient(cli *Client) *cliManager {
-	cli.Lock()
-	defer cli.Unlock()
-
 	cm.clients[cli.UUID] = cli
 	return cm
 }
@@ -61,10 +59,8 @@ func (cm *cliManager) CloseClient(c *Client) {
 	_ = cm.RemoveClient(c)
 }
 
+// down
 func (cm *cliManager) RemoveClient(cli *Client) *cliManager {
-	cli.Lock()
-	defer cli.Unlock()
-
 	delete(cm.clients, cli.UUID)
 	cm.Close(cli)
 	cli.Cancel()
@@ -77,7 +73,7 @@ func (cm *cliManager) getMessage(cli *Client) {
 		// msgType 1 text 2 binary
 		messageType, p, err := conn.ReadMessage()
 		if err != nil {
-			cm.ErrorHandler(NewJError(ErrGetMsg, err.Error()))
+			cm.ErrorHandler(NewJError(ErrWsGetMsg, err.Error()))
 			return
 		}
 

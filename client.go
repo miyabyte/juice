@@ -14,4 +14,6 @@ type Client struct {
 	UUID     uint32
 	Ctx      context.Context
 	Cancel   context.CancelFunc
+
+	Uid interface{}
 }

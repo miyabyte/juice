@@ -14,6 +14,12 @@ func (e *DefaultEvent) Open(cli *Client, r *http.Request) error {
 	return nil
 }
 
+func (e *DefaultEvent) AnalyzeUid(r *http.Request) (uid int) {
+	//fmt.Println(r.Header)
+	fmt.Println("az uid")
+	return
+}
+
 func (e *DefaultEvent) Close(cli *Client) {
 	fmt.Println("ev close")
 	return

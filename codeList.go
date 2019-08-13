@@ -1,5 +1,7 @@
 package juice
 
 const (
-	ErrGetMsg = 501
+	ErrWsGetMsg = 1501
+
+	ErrEnableAnalyzeUid = 1301
 )

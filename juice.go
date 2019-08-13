@@ -28,7 +28,9 @@ func (j *Juice) SetEvent(e Event) {
 }
 
 func (j *Juice) Exec() (err error) {
-	j.wsSet()
+	if err = j.wsSet(); err != nil {
+		return
+	}
 
 	http.HandleFunc(j.Conf.HandlerFuncPattern, j.initialize)
 
@@ -60,6 +62,11 @@ func (j *Juice) initialize(w http.ResponseWriter, r *http.Request) {
 	}
 
 	//lifecycle
+	// analyzeUid handler
+	if j.Conf.EnableAnalyzeUid {
+		client.Uid = j.event.(EnableAnalyzeUid).AnalyzeUid(r)
+	}
+
 	// 	onopen handler
 	if err := j.event.Open(client, r); err != nil {
 		j.Cmd(conn.Close())
@@ -89,7 +96,7 @@ func (j *Juice) heartbeat() (err error) {
 	return
 }
 
-func (j *Juice) wsSet() {
+func (j *Juice) wsSet() (err error) {
 	//upGrader
 	var upGrader = websocket.Upgrader{
 		ReadBufferSize:  1024,
@@ -115,5 +122,16 @@ func (j *Juice) wsSet() {
 		j.event = &DefaultEvent{}
 	}
 
+	if j.Conf.EnableAnalyzeUid {
+		if _, ok := j.event.(EnableAnalyzeUid); !ok {
+			return &JError{
+				code: ErrEnableAnalyzeUid,
+				msg:  "your EVENT must implement AnalyzeUid interface",
+			}
+		}
+	}
+
 	j.cm = GetCliManager(j.event)
+
+	return
 }

@@ -16,4 +16,10 @@ type Config struct {
 	HeartbeatIdleTime      time.Duration
 
 	CheckOrigin func(r *http.Request) bool
+
+	EnableAnalyzeUid bool
+}
+
+type EnableAnalyzeUid interface {
+	AnalyzeUid(r *http.Request) int
 }

@@ -3,6 +3,7 @@ package juice_test
 import (
 	websocket2 "github.com/gorilla/websocket"
 	"github.com/pengshuaifei/juice"
+	"log"
 	"testing"
 )
 
@@ -18,9 +19,11 @@ func TestJuice_Exec(t *testing.T) {
 		WriteBufferSize:        juice.WriteBufferSize,
 		HeartbeatCheckInterval: juice.HeartbeatCheckInterval,
 		HeartbeatIdleTime:      juice.HeartbeatIdleTime,
+
+		EnableAnalyzeUid: true,
 	}}
 	ws.SetEvent(&juice.DefaultEvent{})
-	ws.Exec()
+	log.Fatalln(ws.Exec())
 }
 
 func TestCliManager_AddClient(t *testing.T) {
