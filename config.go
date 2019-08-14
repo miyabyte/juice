@@ -2,8 +2,12 @@ package juice
 
 import (
 	"net/http"
+	"sync"
 	"time"
 )
+
+var c *Config
+var onceConf sync.Once
 
 type Config struct {
 	Addr               string
@@ -22,4 +26,14 @@ type Config struct {
 
 type EnableAnalyzeUid interface {
 	AnalyzeUid(r *http.Request) int
+}
+
+func setConfig(config *Config) {
+	onceConf.Do(func() {
+		c = config
+	})
+}
+
+func GetConfig() *Config {
+	return c
 }

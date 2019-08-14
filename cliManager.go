@@ -4,27 +4,36 @@ import (
 	"context"
 	"github.com/google/uuid"
 	"github.com/gorilla/websocket"
+	"sync"
 	"time"
 )
 
 var cm *cliManager
+var onceCM sync.Once
+
+type Observer interface {
+	Online(cli *Client)
+	Offline(cli *Client)
+}
 
 type cliManager struct {
 	clients map[uint32]*Client
 	Event
+
+	observers []Observer
 }
 
 func GetCliManager(e Event) *cliManager {
-	if cm == nil {
+	onceCM.Do(func() {
 		cm = &cliManager{
 			clients: make(map[uint32]*Client),
 			Event:   e,
 		}
-	}
+	})
 	return cm
 }
 
-func NewClient(conn *websocket.Conn) (client *Client, err error) {
+func NewClient(conn *websocket.Conn) (cli *Client, err error) {
 	if _UUID, err := uuid.NewUUID(); err != nil {
 		return nil, err
 	} else {
@@ -43,13 +52,21 @@ func (cm *cliManager) GetClients() map[uint32]*Client {
 	return cm.clients
 }
 
-func (cm *cliManager) GetClient(uuid uint32) (cli *Client, flag bool) {
-	cli, flag = cm.clients[uuid]
+func (cm *cliManager) GetClient(uuid uint32) (cli *Client, ok bool) {
+	cli, ok = cm.clients[uuid]
 	return
 }
 
-// up
+// up  observer mode
 func (cm *cliManager) AddClient(cli *Client) *cliManager {
+	if GetConfig().EnableAnalyzeUid {
+		ucm := GetUserCliManager()
+		//lock
+		ucm.Lock()
+		defer ucm.Unlock()
+
+		ucm.AddClient(cli)
+	}
 	cm.clients[cli.UUID] = cli
 	return cm
 }
@@ -59,8 +76,16 @@ func (cm *cliManager) CloseClient(c *Client) {
 	_ = cm.RemoveClient(c)
 }
 
-// down
+// down observer mode
 func (cm *cliManager) RemoveClient(cli *Client) *cliManager {
+	if GetConfig().EnableAnalyzeUid {
+		ucm := GetUserCliManager()
+		//lock
+		ucm.Lock()
+		defer ucm.Unlock()
+
+		ucm.RemoveClient(cli)
+	}
 	delete(cm.clients, cli.UUID)
 	cm.Close(cli)
 	cli.Cancel()

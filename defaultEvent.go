@@ -17,7 +17,7 @@ func (e *DefaultEvent) Open(cli *Client, r *http.Request) error {
 func (e *DefaultEvent) AnalyzeUid(r *http.Request) (uid int) {
 	//fmt.Println(r.Header)
 	fmt.Println("az uid")
-	return
+	return 2760
 }
 
 func (e *DefaultEvent) Close(cli *Client) {
@@ -28,6 +28,10 @@ func (e *DefaultEvent) Close(cli *Client) {
 
 func (e *DefaultEvent) Message(cli *Client, p []byte) {
 	fmt.Println("ev msg")
+	us := getOnlineUsers()
+	for k, v := range us {
+		fmt.Println(k, v)
+	}
 	return
 }
 

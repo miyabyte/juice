@@ -28,6 +28,9 @@ func (j *Juice) SetEvent(e Event) {
 }
 
 func (j *Juice) Exec() (err error) {
+	setConfig(&j.Conf)
+	GetUserCliManager()
+
 	if err = j.wsSet(); err != nil {
 		return
 	}

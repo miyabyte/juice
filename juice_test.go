@@ -27,6 +27,8 @@ func TestJuice_Exec(t *testing.T) {
 }
 
 func TestCliManager_AddClient(t *testing.T) {
+	go TestJuice_Exec(t)
+
 	cids := make([]uint32, 0)
 
 	cliM := juice.GetCliManager(&juice.DefaultEvent{})

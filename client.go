@@ -15,5 +15,5 @@ type Client struct {
 	Ctx      context.Context
 	Cancel   context.CancelFunc
 
-	Uid interface{}
+	Uid int
 }
