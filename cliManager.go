@@ -23,7 +23,11 @@ type cliManager struct {
 	observers []Observer
 }
 
-func GetCliManager(e Event) *cliManager {
+func GetCliManager() *cliManager {
+	return cm
+}
+
+func NewCliManager(e Event) *cliManager {
 	onceCM.Do(func() {
 		cm = &cliManager{
 			clients: make(map[uint32]*Client),

@@ -5,13 +5,25 @@ import (
 	"net/http"
 )
 
-type Juice struct {
+var j *juice
+
+type juice struct {
 	event Event
 	Conf  Config
 	Log
 	cm *cliManager
 
 	upGrader websocket.Upgrader
+	Mux      *http.ServeMux
+}
+
+func NewJuice(conf Config, e Event) *juice {
+	j := &juice{
+		Conf:  conf,
+		event: e,
+		Mux:   http.NewServeMux(),
+	}
+	return j
 }
 
 type Event interface {
@@ -23,11 +35,7 @@ type Event interface {
 	ErrorHandler(err JError)
 }
 
-func (j *Juice) SetEvent(e Event) {
-	j.event = e
-}
-
-func (j *Juice) Exec() (err error) {
+func (j *juice) Exec() (err error) {
 	setConfig(&j.Conf)
 	GetUserCliManager()
 
@@ -35,19 +43,19 @@ func (j *Juice) Exec() (err error) {
 		return
 	}
 
-	http.HandleFunc(j.Conf.HandlerFuncPattern, j.initialize)
+	j.Mux.HandleFunc(j.Conf.HandlerFuncPattern, j.initialize)
 
 	if err = j.heartbeat(); err != nil {
 		return
 	}
 
-	if err = http.ListenAndServe(j.Conf.Addr, nil); err != nil {
+	if err = http.ListenAndServe(j.Conf.Addr, j.Mux); err != nil {
 		return
 	}
 	return
 }
 
-func (j *Juice) initialize(w http.ResponseWriter, r *http.Request) {
+func (j *juice) initialize(w http.ResponseWriter, r *http.Request) {
 	var (
 		conn   *websocket.Conn
 		err    error
@@ -91,7 +99,7 @@ func (j *Juice) initialize(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func (j *Juice) heartbeat() (err error) {
+func (j *juice) heartbeat() (err error) {
 	hb := &heartbeat{j.Conf.HeartbeatCheckInterval, j.Conf.HeartbeatIdleTime}
 	if err = hb.run(j.cm); err != nil {
 		return
@@ -99,7 +107,7 @@ func (j *Juice) heartbeat() (err error) {
 	return
 }
 
-func (j *Juice) wsSet() (err error) {
+func (j *juice) wsSet() (err error) {
 	//upGrader
 	var upGrader = websocket.Upgrader{
 		ReadBufferSize:  1024,
@@ -134,7 +142,7 @@ func (j *Juice) wsSet() (err error) {
 		}
 	}
 
-	j.cm = GetCliManager(j.event)
+	j.cm = NewCliManager(j.event)
 
 	return
 }

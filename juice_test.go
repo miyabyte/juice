@@ -7,22 +7,23 @@ import (
 	"testing"
 )
 
-func getJuice() *juice.Juice {
-	return &juice.Juice{}
-}
-
 func TestJuice_Exec(t *testing.T) {
-	ws := &juice.Juice{Conf: juice.Config{
-		Addr:                   string("localhost:8000"),
-		HandlerFuncPattern:     "/ws",
-		ReadBufferSize:         juice.ReadBufferSize,
-		WriteBufferSize:        juice.WriteBufferSize,
-		HeartbeatCheckInterval: juice.HeartbeatCheckInterval,
-		HeartbeatIdleTime:      juice.HeartbeatIdleTime,
+	ws := juice.NewJuice(
+		juice.Config{
+			Addr:                   string("localhost:8000"),
+			HandlerFuncPattern:     "/ws",
+			ReadBufferSize:         juice.ReadBufferSize,
+			WriteBufferSize:        juice.WriteBufferSize,
+			HeartbeatCheckInterval: juice.HeartbeatCheckInterval,
+			HeartbeatIdleTime:      juice.HeartbeatIdleTime,
 
-		EnableAnalyzeUid: true,
-	}}
-	ws.SetEvent(&juice.DefaultEvent{})
+			EnableAnalyzeUid: true,
+		},
+		&juice.DefaultEvent{},
+	)
+
+	ws.Mux.HandleFunc("/ws/info", juice.WsInfo)
+
 	log.Fatalln(ws.Exec())
 }
 
@@ -31,7 +32,7 @@ func TestCliManager_AddClient(t *testing.T) {
 
 	cids := make([]uint32, 0)
 
-	cliM := juice.GetCliManager(&juice.DefaultEvent{})
+	cliM := juice.NewCliManager(&juice.DefaultEvent{})
 
 	for i := 0; i < 100; i++ {
 		client, _ := juice.NewClient(&websocket2.Conn{})

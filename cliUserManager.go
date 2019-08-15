@@ -24,8 +24,8 @@ type userClientManager struct {
 type UserClient struct {
 	sync.Mutex
 
-	uid     int
-	clients map[uint32]*Client
+	Uid     int
+	Clients map[uint32]*Client
 }
 
 func GetUserCliManager() *userClientManager {
@@ -54,51 +54,63 @@ func (ucm *userClientManager) GetOnlineUsers() map[int]time.Time {
 	return OnlineUsers
 }
 
-func (ucm *userClientManager) GetUserClient(uid int) (ucs *UserClient, ok bool) {
+func (ucm *userClientManager) GetUserClients() map[int]*UserClient {
 	ucm.RLock()
 	defer ucm.RUnlock()
 
-	ucs, ok = ucm.ucs[uid]
+	return ucm.ucs
+}
+
+func (ucm *userClientManager) GetUserClient(uid int) (uc *UserClient, ok bool) {
+	ucm.RLock()
+	defer ucm.RUnlock()
+
+	uc, ok = ucm.ucs[uid]
 	return
 }
 
-func getOnlineUsers() map[int]time.Time {
+func (ucm *userClientManager) getOnlineUsers() map[int]time.Time {
 	return OnlineUsers
 }
 
-func getUserClient(uid int) (ucs *UserClient, ok bool) {
+func (ucm *userClientManager) getUserClient(uid int) (ucs *UserClient, ok bool) {
 	ucs, ok = ucm.ucs[uid]
 	return
 }
 
-func (ucm *userClientManager) AddUserClient(cli *Client) {
+// up  observer mode	|	locked from cliManager ->func addClient
+func (ucm *userClientManager) AddClient(cli *Client) {
+	if uc, ok := ucm.getUserClient(cli.Uid); ok {
+		uc.Clients[cli.UUID] = cli
+	} else {
+		ucm.addUserClient(cli)
+	}
+}
+func (ucm *userClientManager) addUserClient(cli *Client) {
 	ucm.ucs[cli.Uid] = &UserClient{
-		uid: cli.Uid,
-		clients: map[uint32]*Client{
+		Uid: cli.Uid,
+		Clients: map[uint32]*Client{
 			cli.UUID: cli,
 		},
 	}
+
 	//user online
+	ucm.getOnlineUsers()[cli.Uid] = time.Now()
+
 	changeUserStatusChan <- struct {
 		uid    int
 		status bool
 	}{uid: cli.Uid, status: true}
 }
 
-// up  observer mode	|	locked from cliManager ->func addClient
-func (ucm *userClientManager) AddClient(cli *Client) {
-	if uc, ok := getUserClient(cli.Uid); ok {
-		uc.clients[cli.UUID] = cli
-	} else {
-		ucm.AddUserClient(cli)
-	}
-}
-
 // down observer mode	|	locked from cliManager ->func addClient
 func (ucm *userClientManager) RemoveClient(cli *Client) {
-	delete(ucm.ucs[cli.Uid].clients, cli.UUID)
-	if len(ucm.ucs[cli.Uid].clients) == 0 {
+	delete(ucm.ucs[cli.Uid].Clients, cli.UUID)
+
+	if len(ucm.ucs[cli.Uid].Clients) == 0 {
 		//user offline
+		delete(ucm.ucs, cli.Uid)
+		delete(ucm.getOnlineUsers(), cli.Uid)
 		changeUserStatusChan <- struct {
 			uid    int
 			status bool
@@ -106,12 +118,13 @@ func (ucm *userClientManager) RemoveClient(cli *Client) {
 	}
 }
 
+// future : buffer
 func (ucm *userClientManager) userStatusCustomer() {
 	for c := range changeUserStatusChan {
 		if c.status {
-			getOnlineUsers()[c.uid] = time.Now()
+			// user up
 		} else {
-			delete(getOnlineUsers(), c.uid)
+			// user down
 		}
 	}
 }
