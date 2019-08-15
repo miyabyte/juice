@@ -13,10 +13,11 @@ type Client struct {
 	conn     *websocket.Conn
 	LastTime time.Time
 	UUID     uint32
-	Ctx      context.Context
 	Cancel   context.CancelFunc
 
-	Uid int
+	Uid   int
+	Ctx   context.Context
+	Extra interface{}
 }
 
 func (c *Client) Info() (info string) {

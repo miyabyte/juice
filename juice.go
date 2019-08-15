@@ -7,6 +7,11 @@ import (
 
 var j *juice
 
+type Mux interface {
+	http.Handler
+	HandleFunc(string, func(http.ResponseWriter, *http.Request))
+}
+
 type juice struct {
 	event Event
 	Conf  Config
@@ -14,7 +19,7 @@ type juice struct {
 	cm *cliManager
 
 	upGrader websocket.Upgrader
-	Mux      *http.ServeMux
+	Mux      Mux
 }
 
 func NewJuice(conf Config, e Event) *juice {
