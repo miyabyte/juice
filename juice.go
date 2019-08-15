@@ -86,7 +86,7 @@ func (j *juice) initialize(w http.ResponseWriter, r *http.Request) {
 
 	// onclose handler
 	conn.SetCloseHandler(func(closeCode int, closeText string) error {
-		_ = j.cm.RemoveClient(client)
+		j.cm.RemoveClient(client)
 		return nil
 	})
 

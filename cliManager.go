@@ -77,11 +77,12 @@ func (cm *cliManager) AddClient(cli *Client) *cliManager {
 
 func (cm *cliManager) CloseClient(c *Client) {
 	_ = c.conn.Close()
-	_ = cm.RemoveClient(c)
+	cm.RemoveClient(c)
 }
 
 // down observer mode
-func (cm *cliManager) RemoveClient(cli *Client) *cliManager {
+func (cm *cliManager) RemoveClient(cli *Client) {
+	defer cli.Cancel()
 	if GetConfig().EnableAnalyzeUid {
 		ucm := GetUserCliManager()
 		//lock
@@ -92,19 +93,19 @@ func (cm *cliManager) RemoveClient(cli *Client) *cliManager {
 	}
 	delete(cm.clients, cli.UUID)
 	cm.Close(cli)
-	cli.Cancel()
-	return cm
 }
 
 func (cm *cliManager) getMessage(cli *Client) {
-	conn := cli.conn
 	for {
 		// msgType 1 text 2 binary
-		messageType, p, err := conn.ReadMessage()
+		messageType, p, err := cli.conn.ReadMessage()
 		if err != nil {
 			cm.ErrorHandler(NewJError(ErrWsGetMsg, err.Error()))
 			return
 		}
+
+		// heartbeat  close
+		cm.baseHandle(cli, messageType, p)
 
 		if messageType == websocket.TextMessage {
 			cm.Event.Message(cli, p)
@@ -119,4 +120,21 @@ func (cm *cliManager) getMessage(cli *Client) {
 		//	j.Cmd(err)
 		//	return
 	}
+}
+
+func (cm *cliManager) baseHandle(cli *Client, messageType int, p []byte) {
+
+	//heartbeat
+	if messageType == websocket.PingMessage ||
+		messageType == websocket.PongMessage ||
+		messageType == websocket.TextMessage ||
+		messageType == websocket.BinaryMessage {
+		cli.LastTime = time.Now()
+	}
+
+	//客户端主动关闭
+	if messageType == websocket.CloseMessage {
+		cm.CloseClient(cli)
+	}
+
 }
