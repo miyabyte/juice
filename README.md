@@ -1,18 +1,23 @@
 # easy websocket 
 
 ```
-ws := &juice.Juice{Conf: juice.Config{
-		Addr:                   "localhost:8000",
-		HandlerFuncPattern:     "/ws",
-		ReadBufferSize:         1024,
-		WriteBufferSize:        1024,
-		HeartbeatCheckInterval: himConf.HeartbeatCheckInterval,
-		HeartbeatIdleTime:      himConf.HeartbeatIdleTime,
-	}}
-	
-ws.SetEvent(&websocket.Event{})
-log.Println(ws.Exec())
-ws.Cmd("listen ws on : 8000")
+ws := juice.NewJuice(
+		juice.Config{
+			Addr:                   string("localhost:8000"),
+			HandlerFuncPattern:     "/ws",
+			ReadBufferSize:         juice.ReadBufferSize,
+			WriteBufferSize:        juice.WriteBufferSize,
+			HeartbeatCheckInterval: juice.HeartbeatCheckInterval,
+			HeartbeatIdleTime:      juice.HeartbeatIdleTime,
+
+			EnableAnalyzeUid: true,
+		},
+		&juice.DefaultEvent{},
+	)
+
+	ws.Mux.HandleFunc("/ws/info", juice.WsInfo)
+
+	log.Fatalln(ws.Exec())
 ```
 
 ```
