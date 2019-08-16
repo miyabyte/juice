@@ -99,9 +99,6 @@ func (j *juice) initialize(w http.ResponseWriter, r *http.Request) {
 
 	//  onmessage handler
 	go j.cm.getMessage(client)
-
-	//heartbeat
-
 }
 
 func (j *juice) heartbeat() (err error) {

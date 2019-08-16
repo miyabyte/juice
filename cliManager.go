@@ -19,8 +19,6 @@ type Observer interface {
 type cliManager struct {
 	clients map[uint32]*Client
 	Event
-
-	observers []Observer
 }
 
 func GetCliManager() *cliManager {
