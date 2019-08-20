@@ -2,7 +2,7 @@ package juice_test
 
 import (
 	websocket2 "github.com/gorilla/websocket"
-	"github.com/pengshuaifei/juice"
+	"juice"
 	"log"
 	"testing"
 )

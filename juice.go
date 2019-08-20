@@ -3,9 +3,11 @@ package juice
 import (
 	"github.com/gorilla/websocket"
 	"net/http"
+	"sync"
 )
 
 var j *juice
+var onceJ sync.Once
 
 type Mux interface {
 	http.Handler
@@ -23,11 +25,13 @@ type juice struct {
 }
 
 func NewJuice(conf Config, e Event) *juice {
-	j := &juice{
-		Conf:  conf,
-		event: e,
-		Mux:   http.NewServeMux(),
-	}
+	onceJ.Do(func() {
+		j = &juice{
+			Conf:  conf,
+			event: e,
+			Mux:   http.NewServeMux(),
+		}
+	})
 	return j
 }
 
