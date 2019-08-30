@@ -15,3 +15,11 @@ func (Log) FileLog(v interface{}) {
 func (Log) Cmd(v interface{}) {
 	log.Println(v)
 }
+
+func Cmd(v interface{}) {
+	log.Println(v)
+}
+
+func Panic(v interface{}) {
+	log.Panic(v)
+}

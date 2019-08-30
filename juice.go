@@ -6,7 +6,7 @@ import (
 	"sync"
 )
 
-var j *juice
+var j *Juice
 var onceJ sync.Once
 
 type Mux interface {
@@ -14,7 +14,7 @@ type Mux interface {
 	HandleFunc(string, func(http.ResponseWriter, *http.Request))
 }
 
-type juice struct {
+type Juice struct {
 	event Event
 	Conf  Config
 	Log
@@ -22,11 +22,13 @@ type juice struct {
 
 	upGrader websocket.Upgrader
 	Mux      Mux
+
+	srv *http.Server
 }
 
-func NewJuice(conf Config, e Event) *juice {
+func NewJuice(conf Config, e Event) *Juice {
 	onceJ.Do(func() {
-		j = &juice{
+		j = &Juice{
 			Conf:  conf,
 			event: e,
 			Mux:   http.NewServeMux(),
@@ -44,7 +46,7 @@ type Event interface {
 	ErrorHandler(err JError)
 }
 
-func (j *juice) Exec() (err error) {
+func (j *Juice) Exec() (err error) {
 	setConfig(&j.Conf)
 	GetUserCliManager()
 
@@ -58,13 +60,18 @@ func (j *juice) Exec() (err error) {
 		return
 	}
 
-	if err = http.ListenAndServe(j.Conf.Addr, j.Mux); err != nil {
+	j.srv = &http.Server{Addr: j.Conf.Addr, Handler: j.Mux}
+	if err = j.srv.ListenAndServe(); err != nil {
 		return
 	}
 	return
 }
 
-func (j *juice) initialize(w http.ResponseWriter, r *http.Request) {
+func (j *Juice) Close() error {
+	return j.srv.Close()
+}
+
+func (j *Juice) initialize(w http.ResponseWriter, r *http.Request) {
 	var (
 		conn   *websocket.Conn
 		err    error
@@ -105,7 +112,7 @@ func (j *juice) initialize(w http.ResponseWriter, r *http.Request) {
 	go j.cm.getMessage(client)
 }
 
-func (j *juice) heartbeat() (err error) {
+func (j *Juice) heartbeat() (err error) {
 	hb := &heartbeat{j.Conf.HeartbeatCheckInterval, j.Conf.HeartbeatIdleTime}
 	if err = hb.run(j.cm); err != nil {
 		return
@@ -113,7 +120,7 @@ func (j *juice) heartbeat() (err error) {
 	return
 }
 
-func (j *juice) wsSet() (err error) {
+func (j *Juice) wsSet() (err error) {
 	//upGrader
 	var upGrader = websocket.Upgrader{
 		ReadBufferSize:  1024,
