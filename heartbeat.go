@@ -26,7 +26,7 @@ func (h *heartbeat) run(s source) error {
 //记录检查一次的消耗时间
 func (h *heartbeat) check(s source) error {
 	for _, cli := range s.GetClients() {
-		if time.Now().Sub(cli.LastTime) > h.HeartbeatIdleTime {
+		if time.Now().Sub(cli.LastTime) > h.HeartbeatIdleTime*time.Second {
 			s.CloseClient(cli)
 		}
 	}

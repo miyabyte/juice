@@ -9,7 +9,7 @@ import (
 
 func TestJuice_Exec(t *testing.T) {
 	ws := juice.NewJuice(
-		juice.Config{
+		&juice.Config{
 			Addr:                   string("localhost:8000"),
 			HandlerFuncPattern:     "/ws",
 			ReadBufferSize:         juice.ReadBufferSize,

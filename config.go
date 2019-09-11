@@ -25,7 +25,7 @@ type Config struct {
 }
 
 type EnableAnalyzeUid interface {
-	AnalyzeUid(r *http.Request) int
+	AnalyzeUid(r *http.Request) (int, error)
 }
 
 func setConfig(config *Config) {

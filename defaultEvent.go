@@ -15,10 +15,10 @@ func (e *DefaultEvent) Open(cli *Client, r *http.Request) error {
 	return nil
 }
 
-func (e *DefaultEvent) AnalyzeUid(r *http.Request) (uid int) {
+func (e *DefaultEvent) AnalyzeUid(r *http.Request) (uid int, err error) {
 	//fmt.Println(r.Header)
 	fmt.Println("az uid")
-	return 2760
+	return 2760, nil
 }
 
 func (e *DefaultEvent) Close(cli *Client) {

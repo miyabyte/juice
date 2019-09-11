@@ -16,7 +16,7 @@ type Mux interface {
 
 type Juice struct {
 	event Event
-	Conf  Config
+	Conf  *Config
 	Log
 	cm *cliManager
 
@@ -26,7 +26,7 @@ type Juice struct {
 	srv *http.Server
 }
 
-func NewJuice(conf Config, e Event) *Juice {
+func NewJuice(conf *Config, e Event) *Juice {
 	onceJ.Do(func() {
 		j = &Juice{
 			Conf:  conf,
@@ -47,7 +47,7 @@ type Event interface {
 }
 
 func (j *Juice) Exec() (err error) {
-	setConfig(&j.Conf)
+	setConfig(j.Conf)
 	GetUserCliManager()
 
 	if err = j.wsSet(); err != nil {
@@ -91,11 +91,14 @@ func (j *Juice) initialize(w http.ResponseWriter, r *http.Request) {
 	//lifecycle
 	// analyzeUid handler
 	if j.Conf.EnableAnalyzeUid {
-		client.Uid = j.event.(EnableAnalyzeUid).AnalyzeUid(r)
+		if client.Uid, err = j.event.(EnableAnalyzeUid).AnalyzeUid(r); err != nil {
+			j.Cmd(conn.Close())
+			return
+		}
 	}
 
 	// 	onopen handler
-	if err := j.event.Open(client, r); err != nil {
+	if err = j.event.Open(client, r); err != nil {
 		j.Cmd(conn.Close())
 		return
 	}
