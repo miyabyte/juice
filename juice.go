@@ -92,7 +92,8 @@ func (j *Juice) initialize(w http.ResponseWriter, r *http.Request) {
 	// analyzeUid handler
 	if j.Conf.EnableAnalyzeUid {
 		if client.Uid, err = j.event.(EnableAnalyzeUid).AnalyzeUid(r); err != nil {
-			j.Cmd(conn.Close())
+			j.Cmd(err)
+			conn.Close()
 			return
 		}
 	}
