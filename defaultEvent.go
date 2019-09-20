@@ -2,6 +2,7 @@ package juice
 
 import (
 	"fmt"
+	"github.com/gin-gonic/gin"
 	"net/http"
 	"time"
 )
@@ -13,6 +14,20 @@ func (e *DefaultEvent) Open(cli *Client, r *http.Request) error {
 	//fmt.Println(r.Header)
 	fmt.Println("open")
 	return nil
+}
+
+type ginMux struct {
+	*gin.Engine
+}
+
+func (g *ginMux) HandleFunc(path string, f func(w http.ResponseWriter, r *http.Request)) {
+	g.GET(path, func(c *gin.Context) {
+		f(c.Writer, c.Request)
+	})
+}
+
+func (e *DefaultEvent) NewMux() Mux {
+	return &ginMux{gin.Default()}
 }
 
 func (e *DefaultEvent) AnalyzeUid(r *http.Request) (uid int, err error) {

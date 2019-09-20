@@ -22,10 +22,20 @@ type Config struct {
 	CheckOrigin func(r *http.Request) bool
 
 	EnableAnalyzeUid bool
+	EnableChangeMux  bool
 }
 
 type EnableAnalyzeUid interface {
 	AnalyzeUid(r *http.Request) (int, error)
+}
+
+type Mux interface {
+	http.Handler
+	HandleFunc(string, func(http.ResponseWriter, *http.Request))
+}
+
+type EnableChangeMux interface {
+	NewMux() Mux
 }
 
 func setConfig(config *Config) {

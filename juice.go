@@ -3,16 +3,9 @@ package juice
 import (
 	"github.com/gorilla/websocket"
 	"net/http"
-	"sync"
 )
 
 var j *Juice
-var onceJ sync.Once
-
-type Mux interface {
-	http.Handler
-	HandleFunc(string, func(http.ResponseWriter, *http.Request))
-}
 
 type Juice struct {
 	event Event
@@ -26,15 +19,18 @@ type Juice struct {
 	srv *http.Server
 }
 
-func NewJuice(conf *Config, e Event) *Juice {
-	onceJ.Do(func() {
-		j = &Juice{
-			Conf:  conf,
-			event: e,
-			Mux:   http.NewServeMux(),
-		}
-	})
-	return j
+func NewJuice(conf *Config, e Event) (*Juice, error) {
+	j = &Juice{
+		Conf:  conf,
+		event: e,
+	}
+	setConfig(j.Conf)
+	GetUserCliManager()
+
+	if err := j.wsSet(); err != nil {
+		return nil, err
+	}
+	return j, nil
 }
 
 type Event interface {
@@ -47,12 +43,6 @@ type Event interface {
 }
 
 func (j *Juice) Exec() (err error) {
-	setConfig(j.Conf)
-	GetUserCliManager()
-
-	if err = j.wsSet(); err != nil {
-		return
-	}
 
 	j.Mux.HandleFunc(j.Conf.HandlerFuncPattern, j.initialize)
 
@@ -157,6 +147,20 @@ func (j *Juice) wsSet() (err error) {
 				msg:  "your EVENT must implement AnalyzeUid interface",
 			}
 		}
+	}
+
+	//todo
+	if j.Conf.EnableChangeMux {
+		if _, ok := j.event.(EnableChangeMux); !ok {
+			return &JError{
+				code: ErrEnableChangeMux,
+				msg:  "your EVENT must implementEnableChangeMux interface",
+			}
+		} else {
+			j.Mux = j.event.(EnableChangeMux).NewMux()
+		}
+	} else {
+		j.Mux = http.NewServeMux()
 	}
 
 	j.cm = NewCliManager(j.event)

@@ -8,7 +8,7 @@ import (
 )
 
 func TestJuice_Exec(t *testing.T) {
-	ws := juice.NewJuice(
+	ws, _ := juice.NewJuice(
 		&juice.Config{
 			Addr:                   string("localhost:8000"),
 			HandlerFuncPattern:     "/ws",
@@ -16,8 +16,10 @@ func TestJuice_Exec(t *testing.T) {
 			WriteBufferSize:        juice.WriteBufferSize,
 			HeartbeatCheckInterval: juice.HeartbeatCheckInterval,
 			HeartbeatIdleTime:      juice.HeartbeatIdleTime,
-
+			//开启解析用户
 			EnableAnalyzeUid: true,
+			//开启自定义mux   示例：gin
+			EnableChangeMux: true,
 		},
 		&juice.DefaultEvent{},
 	)
